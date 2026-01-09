@@ -1,31 +1,54 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Employe
-from .forms import EmployeForm
+from .serializers import EmployeSerializer
+from rest_framework import generics
 
 # Create your views here.
 
-def liste_employes(request):
-    employes = Employe.objects.all()
-    return render(request, 'employe/list.html', {'employes': employes})
+# def liste_employes(request):
+#     employes = Employe.objects.all()
+#     return render(request, 'employe/list.html', {'employes': employes})
 
-def ajouter_employe(request):
-    form = EmployeForm(request.POST or None)
-    if form.is_valid():
-        form.save()
-        return redirect('liste_employes')
-    return render(request, 'employe/formulaire.html', {'form': form})
+# def ajouter_employe(request):
+#     form = EmployeForm(request.POST or None)
+#     if form.is_valid():
+#         form.save()
+#         return redirect('liste_employes')
+#     return render(request, 'employe/formulaire.html', {'form': form})
 
-def modifier_employe(request, id):
-    employe = get_object_or_404(Employe, id=id)
-    form = EmployeForm(request.POST or None, instance=employe)
-    if form.is_valid():
-        form.save()
-        return redirect('liste_employes')
-    return render(request, 'employe/formulaire.html', {'form': form})
+# def modifier_employe(request, id):
+#     employe = get_object_or_404(Employe, id=id)
+#     form = EmployeForm(request.POST or None, instance=employe)
+#     if form.is_valid():
+#         form.save()
+#         return redirect('liste_employes')
+#     return render(request, 'employe/formulaire.html', {'form': form})
 
-def supprimer_employe(request, id):
-    employe = get_object_or_404(Employe, id=id)
-    if request.method == 'POST':
-        employe.delete()
-        return redirect('liste_employes')
-    return render(request, 'employe/confirmer_suppression.html', {'employe': employe})
+# def supprimer_employe(request, id):
+#     employe = get_object_or_404(Employe, id=id)
+#     if request.method == 'POST':
+#         employe.delete()
+#         return redirect('liste_employes')
+#     return render(request, 'employe/confirmer_suppression.html', {'employe': employe})
+
+
+class listeEmployes(generics.ListAPIView):
+    serializer_class = EmployeSerializer
+    queryset = Employe.objects.all()
+
+
+class ajouterEmployes(generics.CreateAPIView):
+    serializer_class = EmployeSerializer
+    queryset = Employe.objects.all()
+
+
+class modifierEmployes(generics.RetrieveUpdateAPIView):
+    serializer_class = EmployeSerializer
+    queryset = Employe.objects.all()
+    lookup_field = 'id'
+
+
+class supprimerEmployes(generics.RetrieveDestroyAPIView):
+    serializer_class = EmployeSerializer
+    queryset = Employe.objects.all()
+    lookup_field = 'id'
