@@ -3,7 +3,9 @@
 ## Introduction
 Ce projet permet de créer une application Django pour gérer les employés en mettant en place un CRUD (Créer, Lire, Mettre à jour, Supprimer) grâce aux modèles (models), aux vues (vues) et aux templates.
 
-TECHNOLOGIES UTILISEES : Django
+## Technologies utilisées
+
+- Django
 
 
 ## Etapes et commandes utiles pour un tel projet
@@ -13,8 +15,8 @@ TECHNOLOGIES UTILISEES : Django
 Créer un environnement virtuel qui permet de créer une boîte dans laquelle on va stocker toutes nos dépendances et bibliothèques Django en Python. Cet environnement permet d'isoler toutes les dépendances des dépendances qui se trouvent directement dans notre ordinateur.
 
 Commandes sur le terminal : 
-python -m venv env
-env\Scripts\activate
+python -m venv env (pour créer l'nevironnement virtuel qui sera comme une boîte pour stocker toutes nos dépendances)
+env\Scripts\activate (pour activer cet environnement virtuel)
 
 - Préparation de l'environnement Django
 
@@ -26,9 +28,16 @@ Installer Django : pip install django
 
 - Créer une application Django dans un projet Django : python manage.py startapp nom_de_l'application
 
+NB : le nom doit être en mininuscule et utiliser le camel_case
+
 On peut créer plusieurs applications Django à l'intérieur d'un même projet Django
 
+- Installer l'application "employe" dans le projet "employe_project"
+Si on ne le fait pas, l'application ne sera pas prise en compte.
+Pour se faire, il faut ouvrir le fichier "settings.py" puis à la partie "Application definition", on insère l'application "employe" à la liste des applications installées.
 
+- Gérer la base de données
+Dans le fichier "settings.py" dans le projet, oon va jusqu'à la partie "Database" et on fait les configurations en fonction de la base de données utilisée mais par défaut, c'est configuré avec sqlite.
 
 
 ## Liens utiles
