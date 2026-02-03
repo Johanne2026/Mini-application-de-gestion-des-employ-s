@@ -1,0 +1,21 @@
+# Django et dépendances principales
+Django==6.0
+djangorestframework==3.14.0
+
+# Base de données (si vous voulez changer de SQLite)
+# psycopg2-binary==2.9.5  # Pour PostgreSQL
+# mysqlclient==2.1.1      # Pour MySQL
+
+# Outils de développement et tests
+flake8==6.0.0
+pytest==7.2.0
+pytest-django==4.5.2
+pytest-cov==4.0.0
+
+# Sécurité
+bandit==1.7.4
+safety==2.3.4
+
+# Production (optionnel)
+# gunicorn==20.1.0
+# whitenoise==6.2.0
