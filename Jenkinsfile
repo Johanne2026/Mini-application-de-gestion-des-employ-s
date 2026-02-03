@@ -1,13 +1,9 @@
 pipeline {
     agent any
     
-    tools {
-        // Spécifiez la version Python si configurée dans Jenkins
-        // python 'Python-3.9'
-    }
     
     environment {
-        PYTHON_VERSION = '3.9'
+        PYTHON_VERSION = '3.13.2'
         DJANGO_SETTINGS_MODULE = 'employe_project.settings'
         SECRET_KEY = 'jenkins-test-key-not-for-production'
         PATH = "${env.PATH}:/usr/local/bin:/usr/bin"
