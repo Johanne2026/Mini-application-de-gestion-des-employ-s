@@ -1,6 +1,6 @@
 # Django et dépendances principales
 Django==6.0
-djangorestframework==3.14.0
+djangorestframework==3.15.2
 
 # Base de données (si vous voulez changer de SQLite)
 # psycopg2-binary==2.9.5  # Pour PostgreSQL
