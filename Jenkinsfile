@@ -1,431 +1,180 @@
 pipeline {
     agent any
     
-    environment {
-        // 🔥 Version Python à utiliser
-        PYTHON_VERSION = '3.13'
-        // Vérifier les chemins pour Python 3.13
-        PYTHON_PATHS = "/usr/local/bin:/usr/bin:/opt/homebrew/bin:/usr/local/opt/python@3.13/bin"
-        
-        // Django
-        DJANGO_SETTINGS_MODULE = 'employe_project.settings'
-        SECRET_KEY = 'jenkins-test-key-not-for-production'
-        
-        // Mise à jour du PATH avec Python 3.13
-        PATH = "${env.PYTHON_PATHS}:${env.PATH}"
-        
-        // Variables pip
-        PIP_NO_CACHE_DIR = 'false'
-        PIP_CACHE_DIR = '/tmp/pip-cache'
+    tools {
+        // Spécifiez la version Python si configurée dans Jenkins
+        // python 'Python-3.9'
     }
     
-    options {
-        timeout(time: 30, unit: 'MINUTES')
-        retry(2) // Réessayer en cas d'échec
+    environment {
+        PYTHON_VERSION = '3.9'
+        DJANGO_SETTINGS_MODULE = 'employe_project.settings'
+        SECRET_KEY = 'jenkins-test-key-not-for-production'
+        PATH = "${env.PATH}:/usr/local/bin:/usr/bin"
     }
     
     stages {
         stage('Checkout') {
             steps {
-                echo '📦 Récupération du code source...'
+                echo 'Récupération du code source...'
                 checkout scm
             }
         }
         
-        stage('Diagnostic Système') {
+        stage('Setup Environment') {
             steps {
-                echo '🔍 Diagnostic de l\'environnement...'
-                sh '''
-                    echo "=== PLATEFORME ==="
-                    uname -a
-                    lsb_release -a 2>/dev/null || cat /etc/*release 2>/dev/null || echo "Non disponible"
-                    
-                    echo "=== PYTHON DISPONIBLE ==="
-                    echo "Recherche Python 3.13..."
-                    find /usr -name "*python3.13*" 2>/dev/null | head -10 || echo "Non trouvé dans /usr"
-                    find /usr/local -name "*python3.13*" 2>/dev/null | head -10 || echo "Non trouvé dans /usr/local"
-                    find /opt -name "*python3.13*" 2>/dev/null | head -10 || echo "Non trouvé dans /opt"
-                    
-                    echo "=== VERSIONS INSTALLÉES ==="
-                    ls -la /usr/bin/python* 2>/dev/null || true
-                    ls -la /usr/local/bin/python* 2>/dev/null || true
-                    ls -la /opt/homebrew/bin/python* 2>/dev/null || true
-                    
-                    echo "=== COMMANDES DISPONIBLES ==="
-                    command -v python3.13 && echo "✓ python3.13 disponible" || echo "✗ python3.13 non trouvé"
-                    command -v python3 && python3 --version || echo "python3 non disponible"
-                    command -v python && python --version || echo "python non disponible"
-                    
-                    echo "=== PATH ACTUEL ==="
-                    echo $PATH
-                '''
-            }
-        }
-        
-        stage('Installation Python 3.13 si nécessaire') {
-            when {
-                // Exécuter seulement si Python 3.13 n'est pas trouvé
-                expression {
-                    sh(script: 'command -v python3.13', returnStatus: true) != 0
-                }
-            }
-            steps {
-                echo '🐍 Installation de Python 3.13...'
+                echo 'Configuration de l\'environnement Python...'
                 script {
-                    // Détection de la distribution
-                    def osType = sh(script: '''
-                        if [ -f /etc/os-release ]; then
-                            . /etc/os-release
-                            echo $ID
-                        elif [ "$(uname)" = "Darwin" ]; then
-                            echo "macos"
-                        else
-                            echo "unknown"
-                        fi
-                    ''', returnStdout: true).trim()
-                    
-                    echo "Système détecté: ${osType}"
-                    
-                    switch(osType) {
-                        case 'ubuntu':
-                        case 'debian':
-                            sh '''
-                                echo "Installation sur Ubuntu/Debian..."
-                                sudo apt-get update
-                                sudo apt-get install -y software-properties-common build-essential
-                                
-                                # Python 3.13 via deadsnakes PPA (Ubuntu)
-                                if [ "$ID" = "ubuntu" ]; then
-                                    sudo add-apt-repository -y ppa:deadsnakes/ppa
-                                    sudo apt-get update
-                                    sudo apt-get install -y python3.13 python3.13-venv python3.13-dev
-                                # Ou compilation depuis source pour Debian
-                                else
-                                    echo "Compilation de Python 3.13 depuis source..."
-                                    sudo apt-get install -y wget build-essential libssl-dev zlib1g-dev \
-                                        libbz2-dev libreadline-dev libsqlite3-dev libncursesw5-dev \
-                                        xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
-                                    
-                                    wget https://www.python.org/ftp/python/3.13.0/Python-3.13.0.tgz
-                                    tar -xf Python-3.13.0.tgz
-                                    cd Python-3.13.0
-                                    ./configure --enable-optimizations
-                                    make -j$(nproc)
-                                    sudo make altinstall
-                                    cd ..
-                                    rm -rf Python-3.13.0 Python-3.13.0.tgz
-                                fi
-                                
-                                # Vérification
-                                python3.13 --version
-                            '''
-                            break
+                    try {
+                        sh '''
+                            echo "=== Diagnostic de l'environnement ==="
+                            echo "Utilisateur: $(whoami)"
+                            echo "Répertoire: $(pwd)"
+                            echo "PATH: $PATH"
                             
-                        case 'centos':
-                        case 'rhel':
-                        case 'fedora':
-                            sh '''
-                                echo "Installation sur CentOS/RHEL/Fedora..."
-                                sudo dnf install -y gcc openssl-devel bzip2-devel libffi-devel zlib-devel
-                                sudo dnf install -y wget make tk-devel xz-devel sqlite-devel
-                                
-                                wget https://www.python.org/ftp/python/3.13.0/Python-3.13.0.tgz
-                                tar -xf Python-3.13.0.tgz
-                                cd Python-3.13.0
-                                ./configure --enable-optimizations
-                                make -j$(nproc)
-                                sudo make altinstall
-                                cd ..
-                                rm -rf Python-3.13.0 Python-3.13.0.tgz
-                                
-                                python3.13 --version
-                            '''
-                            break
+                            echo "=== Vérification Python ==="
+                            which python3 || which python || echo "Python non trouvé dans PATH"
+                            python3 --version 2>&1 || python --version 2>&1 || echo "Impossible d'exécuter Python"
                             
-                        case 'macos':
-                            sh '''
-                                echo "Installation sur macOS..."
-                                # Avec Homebrew
-                                if command -v brew &> /dev/null; then
-                                    brew update
-                                    brew install python@3.13
-                                    brew link --overwrite python@3.13
-                                # Sinon installer depuis python.org
-                                else
-                                    echo "Installation via python.org..."
-                                    curl -O https://www.python.org/ftp/python/3.13.0/python-3.13.0-macos11.pkg
-                                    sudo installer -pkg python-3.13.0-macos11.pkg -target /
-                                    rm python-3.13.0-macos11.pkg
-                                fi
-                                
-                                # Vérifier l'installation
-                                /usr/local/bin/python3.13 --version || python3.13 --version
-                            '''
-                            break
+                            echo "=== Test module venv ==="
+                            python3 -m venv --help > /dev/null 2>&1 || python -m venv --help > /dev/null 2>&1 || echo "Module venv non disponible"
                             
-                        default:
-                            echo "⚠️ Système non supporté, tentative avec pyenv..."
-                            sh '''
-                                # Installation de pyenv
-                                curl https://pyenv.run | bash
-                                export PYENV_ROOT="$HOME/.pyenv"
-                                [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
-                                eval "$(pyenv init -)"
-                                
-                                # Installation Python 3.13
-                                pyenv install 3.13.0
-                                pyenv global 3.13.0
-                                
-                                # Mise à jour du PATH
-                                export PATH="$HOME/.pyenv/versions/3.13.0/bin:$PATH"
-                                python --version
-                            '''
-                            break
+                            echo "=== Création environnement virtuel ==="
+                            if command -v python3 &> /dev/null; then
+                                python3 -m venv venv
+                            elif command -v python &> /dev/null; then
+                                python -m venv venv
+                            else
+                                echo "ERREUR: Aucune version de Python trouvée"
+                                exit 1
+                            fi
+                            
+                            echo "=== Activation et configuration ==="
+                            . venv/bin/activate
+                            which python
+                            python --version
+                            pip install --upgrade pip
+                            pip install wheel setuptools
+                            echo "=== Setup terminé avec succès ==="
+                        '''
+                    } catch (Exception e) {
+                        echo "Erreur lors du setup: ${e.getMessage()}"
+                        sh '''
+                            echo "=== Informations système pour debug ==="
+                            uname -a
+                            ls -la /usr/bin/python* || echo "Pas de Python dans /usr/bin"
+                            ls -la /usr/local/bin/python* || echo "Pas de Python dans /usr/local/bin"
+                            env | grep -i python || echo "Pas de variables Python"
+                        '''
+                        throw e
                     }
                 }
             }
         }
         
-        stage('Setup Environment Python 3.13') {
+        stage('Install Dependencies') {
             steps {
-                echo '⚙️ Configuration de l\'environnement Python 3.13...'
+                echo 'Installation des dépendances...'
                 sh '''
-                    echo "=== SÉLECTION DE PYTHON 3.13 ==="
-                    
-                    # Priorité d'exécution
-                    PYTHON_CMD=""
-                    if command -v python3.13 &> /dev/null; then
-                        PYTHON_CMD="python3.13"
-                    elif command -v python3 &> /dev/null && python3 --version 2>&1 | grep -q "3.13"; then
-                        PYTHON_CMD="python3"
-                    elif command -v python &> /dev/null && python --version 2>&1 | grep -q "3.13"; then
-                        PYTHON_CMD="python"
-                    elif [ -f "/usr/local/bin/python3.13" ]; then
-                        PYTHON_CMD="/usr/local/bin/python3.13"
-                    elif [ -f "/usr/bin/python3.13" ]; then
-                        PYTHON_CMD="/usr/bin/python3.13"
-                    else
-                        echo "❌ ERREUR: Python 3.13 non trouvé"
-                        echo "Liste finale des binaires Python:"
-                        which -a python3 python || true
-                        exit 1
-                    fi
-                    
-                    echo "✅ Python sélectionné: $PYTHON_CMD"
-                    $PYTHON_CMD --version
-                    
-                    # Création du virtualenv avec Python 3.13
-                    echo "=== CRÉATION VIRTUALENV ==="
-                    $PYTHON_CMD -m venv venv --clear --prompt "py3.13-django"
-                    
-                    # Activation
-                    source venv/bin/activate
-                    
-                    echo "=== VÉRIFICATION VIRTUALENV ==="
-                    which python
-                    python --version
-                    
-                    echo "=== MISE À JOUR PIP ==="
-                    python -m pip install --upgrade pip setuptools wheel
-                    pip --version
-                    
-                    echo "=== CONFIGURATION PIP CACHE ==="
-                    mkdir -p ${PIP_CACHE_DIR}
-                    pip config set global.cache-dir ${PIP_CACHE_DIR}
-                    
-                    echo "✅ Environnement Python 3.13 configuré avec succès"
-                '''
-            }
-        }
-        
-        stage('Installation Dépendances Django') {
-            steps {
-                echo '📦 Installation des dépendances Django...'
-                sh '''
-                    source venv/bin/activate
-                    
-                    echo "=== INSTALLATION DJANGO ==="
-                    # Django compatible avec Python 3.13
-                    pip install "Django>=5.0,<6.0"  # Django 6.0 n'existe pas encore, utiliser Django 5.x
-                    
-                    # Autres dépendances principales
+                    . venv/bin/activate
+                    # Installation des dépendances principales
+                    pip install Django==6.0
                     pip install djangorestframework
-                    pip install psycopg2-binary  # Si vous utilisez PostgreSQL
                     
-                    echo "=== INSTALLATION OUTILS DÉVELOPPEMENT ==="
+                    # Installation des outils de développement
                     pip install flake8 pytest pytest-django pytest-cov
                     pip install bandit safety
-                    pip install black isort  # Pour le formatage
                     
-                    # Vérification des versions
-                    echo "=== VÉRIFICATION VERSIONS ==="
-                    python -c "import django; print(f'Django {django.__version__}')"
-                    python -c "import sys; print(f'Python {sys.version}')"
-                    
-                    # Installation depuis requirements.txt si existant
-                    if [ -f "requirements.txt" ]; then
-                        echo "Installation depuis requirements.txt..."
-                        # Nettoyer le fichier requirements.txt si nécessaire
-                        grep -v "Django==" requirements.txt > requirements_clean.txt || cp requirements.txt requirements_clean.txt
-                        pip install -r requirements_clean.txt
-                        rm -f requirements_clean.txt
+                    # Si un requirements.txt existe, l'utiliser
+                    if [ -f requirements.txt ]; then
+                        pip install -r requirements.txt
                     fi
-                    
-                    echo "✅ Dépendances installées avec succès"
                 '''
             }
         }
         
         stage('Database Setup') {
             steps {
-                echo '🗄️ Configuration de la base de données...'
+                echo 'Configuration de la base de données...'
                 sh '''
-                    source venv/bin/activate
+                    . venv/bin/activate
                     export DJANGO_SETTINGS_MODULE=employe_project.settings
                     
-                    echo "=== VÉRIFICATION MIGRATIONS ==="
-                    # Test de connexion (pour SQLite, crée le fichier si besoin)
-                    python -c "
-                    import django
-                    django.setup()
-                    from django.db import connection
-                    cursor = connection.cursor()
-                    print('✓ Connexion BD OK')
-                    "
-                    
-                    echo "=== APPLICATIONS DES MIGRATIONS ==="
+                    # Migrations
+                    python manage.py makemigrations --dry-run --check || python manage.py makemigrations
                     python manage.py migrate --noinput
                     
-                    echo "=== COLLECTE FICHIERS STATIQUES ==="
-                    python manage.py collectstatic --noinput --clear || echo "Collecte statique ignorée"
-                    
-                    echo "✅ Base de données configurée"
+                    # Collecte des fichiers statiques
+                    python manage.py collectstatic --noinput --clear || true
                 '''
             }
         }
         
         stage('Code Quality') {
             parallel {
-                stage('Linting & Formatting') {
+                stage('Linting') {
                     steps {
-                        echo '🧹 Vérification du code...'
+                        echo 'Vérification du style de code...'
                         sh '''
-                            source venv/bin/activate
-                            
-                            echo "=== BLACK (formatage) ==="
-                            black --check --diff employe/ employe_project/ || true
-                            
-                            echo "=== ISORT (imports) ==="
-                            isort --check-only --diff employe/ employe_project/ || true
-                            
-                            echo "=== FLAKE8 (linting) ==="
-                            flake8 employe/ employe_project/ \
-                                --max-line-length=100 \
-                                --exclude=migrations,venv,env,.venv \
-                                --format=junit-xml \
-                                --output-file=flake8-report.xml || true
+                            . venv/bin/activate
+                            flake8 employe/ employe_project/ --max-line-length=100 \
+                                --exclude=migrations,venv,env \
+                                --format=junit-xml --output-file=flake8-report.xml || true
                         '''
                     }
                 }
                 
                 stage('Security Scan') {
                     steps {
-                        echo '🛡️ Analyse de sécurité...'
+                        echo 'Analyse de sécurité...'
                         sh '''
-                            source venv/bin/activate
-                            
-                            echo "=== SAFETY (dépendances) ==="
+                            . venv/bin/activate
+                            # Scan des dépendances
                             safety check --json --output safety-report.json || true
                             
-                            echo "=== BANDIT (code) ==="
+                            # Scan du code Django
                             bandit -r employe/ employe_project/ \
                                 -f json -o bandit-report.json \
-                                --exclude="*/migrations/*,*/venv/*,*/env/*,*/.venv/*" || true
-                            
-                            # Rapport HTML pour bandit
-                            bandit -r employe/ employe_project/ \
-                                -f html -o bandit-report.html \
-                                --exclude="*/migrations/*,*/venv/*,*/env/*,*/.venv/*" || true
+                                --exclude="*/migrations/*,*/venv/*" || true
                         '''
                     }
                 }
             }
         }
         
-        stage('Tests Django') {
+        stage('Tests') {
             steps {
-                echo '🧪 Exécution des tests...'
+                echo 'Exécution des tests...'
                 sh '''
-                    source venv/bin/activate
+                    . venv/bin/activate
                     export DJANGO_SETTINGS_MODULE=employe_project.settings
                     
-                    echo "=== TESTS DJANGO NATIFS ==="
-                    # Tests Django avec sortie détaillée
-                    python manage.py test --noinput --parallel=$(nproc 2>/dev/null || echo 2) --verbosity=2
+                    # Tests Django natifs
+                    python manage.py test --noinput --verbosity=2
                     
-                    echo "=== TESTS AVEC PYTEST ==="
-                    # Tests avec pytest pour meilleurs rapports
-                    pytest employe/ employe_project/ \
-                        --junitxml=pytest-report.xml \
-                        --cov=employe \
-                        --cov=employe_project \
-                        --cov-report=xml \
-                        --cov-report=html \
-                        --cov-exclude="*/migrations/*,*/tests/*" \
-                        --disable-warnings || true
-                    
-                    echo "=== RAPPORT COUVERTURE ==="
-                    python -c "
-                    import xml.etree.ElementTree as ET
-                    try:
-                        tree = ET.parse('coverage.xml')
-                        root = tree.getroot()
-                        line_rate = float(root.get('line-rate', 0)) * 100
-                        branch_rate = float(root.get('branch-rate', 0)) * 100
-                        print(f'Couverture lignes: {line_rate:.1f}%')
-                        print(f'Couverture branches: {branch_rate:.1f}%')
-                    except:
-                        print('Rapport de couverture non disponible')
-                    "
+                    # Tests avec pytest si configuré
+                    if [ -f pytest.ini ] || [ -f setup.cfg ] || [ -f pyproject.toml ]; then
+                        pytest --junitxml=pytest-report.xml \
+                               --cov=employe --cov=employe_project \
+                               --cov-report=xml --cov-report=html \
+                               --cov-exclude="*/migrations/*" || true
+                    fi
                 '''
             }
         }
         
-        stage('Django Health Check') {
+        stage('Django Check') {
             steps {
-                echo '🏥 Vérifications Django approfondies...'
+                echo 'Vérifications Django...'
                 sh '''
-                    source venv/bin/activate
+                    . venv/bin/activate
                     export DJANGO_SETTINGS_MODULE=employe_project.settings
                     
-                    echo "=== VÉRIFICATIONS SYSTÈME ==="
-                    python manage.py check --deploy --fail-level ERROR || true
+                    # Vérifications système Django
+                    python manage.py check --deploy || python manage.py check
                     
-                    echo "=== ÉTAT DES MIGRATIONS ==="
-                    python manage.py showmigrations --list
-                    
-                    echo "=== VÉRIFICATION ADMIN ==="
-                    python manage.py shell -c "
-                    from django.contrib.auth import get_user_model
-                    User = get_user_model()
-                    try:
-                        admin_count = User.objects.filter(is_superuser=True).count()
-                        print(f'✓ Superutilisateurs: {admin_count}')
-                    except:
-                        print('⚠️ Impossible de vérifier les utilisateurs')
-                    "
-                    
-                    echo "=== TEST SERVEUR DE DÉVELOPPEMENT ==="
-                    # Test rapide du serveur
-                    timeout 10 python manage.py runserver 0.0.0.0:8888 &
-                    SERVER_PID=$!
-                    sleep 3
-                    if curl -f http://localhost:8888/ > /dev/null 2>&1; then
-                        echo "✅ Serveur Django fonctionnel"
-                    else
-                        echo "⚠️ Serveur Django non accessible"
-                    fi
-                    kill $SERVER_PID 2>/dev/null || true
+                    # Vérification des migrations
+                    python manage.py showmigrations
                 '''
             }
         }
@@ -433,115 +182,52 @@ pipeline {
     
     post {
         always {
-            echo '🧹 Nettoyage et archivage...'
+            echo 'Nettoyage et archivage des résultats...'
             
-            // Archive des rapports de qualité
-            archiveArtifacts(
-                artifacts: '**/*-report.*, coverage.xml, .coverage',
-                allowEmptyArchive: true
-            )
-            
-            // Rapports JUnit
+            // Archive des rapports de tests
             junit(
                 allowEmptyResults: true,
-                testResults: '**/*-report.xml',
-                healthScaleFactor: 100.0
+                testResults: '*-report.xml'
             )
             
-            // Rapport de couverture HTML
+            // Rapport de couverture
             publishHTML([
-                allowMissing: true,
+                allowMissing: false,
                 alwaysLinkToLastBuild: true,
                 keepAll: true,
                 reportDir: 'htmlcov',
                 reportFiles: 'index.html',
-                reportName: 'Couverture de Code',
-                reportTitles: 'Couverture Python 3.13'
+                reportName: 'Coverage Report',
+                reportTitles: ''
             ])
             
-            // Rapport de sécurité
-            publishHTML([
-                allowMissing: true,
-                alwaysLinkToLastBuild: true,
-                keepAll: false,
-                reportDir: '.',
-                reportFiles: 'bandit-report.html',
-                reportName: 'Rapport Sécurité',
-                reportTitles: 'Bandit Security Scan'
-            ])
+            // Archive des artefacts
+            archiveArtifacts(
+                artifacts: '**/*-report.json, **/*-report.xml, **/htmlcov/**',
+                allowEmptyArchive: true
+            )
             
             // Nettoyage
             sh '''
-                echo "=== NETTOYAGE ==="
-                # Arrêt de tous les processus Python
-                pkill -f "python.*runserver" 2>/dev/null || true
-                pkill -f "python.*manage.py" 2>/dev/null || true
-                
-                # Suppression des fichiers temporaires
-                rm -rf venv .venv __pycache__ */__pycache__ *.pyc
-                rm -f db.sqlite3 test*.db .coverage
-                rm -f *.log *.pid
-                
-                echo "✅ Nettoyage terminé"
+                rm -rf venv || true
+                rm -f db.sqlite3 || true
             '''
         }
         
         success {
-            echo '✅✅✅ Pipeline Django avec Python 3.13 réussi! ✅✅✅'
-            script {
-                // Notification optionnelle
-                def pythonVersion = sh(script: 'source venv/bin/activate 2>/dev/null && python --version || echo "Unknown"', returnStdout: true).trim()
-                def djangoVersion = sh(script: 'source venv/bin/activate 2>/dev/null && python -c "import django; print(django.__version__)" 2>/dev/null || echo "Unknown"', returnStdout: true).trim()
-                
-                echo """
-                📊 RÉSUMÉ DU BUILD
-                ==================
-                Python: ${pythonVersion}
-                Django: ${djangoVersion}
-                Build: ${env.BUILD_NUMBER}
-                Job: ${env.JOB_NAME}
-                ==================
-                """
-                
-                // Exemple Slack
-                // slackSend(
-                //     color: 'good',
-                //     message: "✅ Build ${env.BUILD_NUMBER} réussi\nPython ${pythonVersion}\nDjango ${djangoVersion}"
-                // )
-            }
+            echo '✅ Pipeline Django réussie!'
+            // Optionnel: notification Slack/Teams
+            // slackSend(channel: '#dev', message: "✅ Build réussi pour ${env.JOB_NAME} - ${env.BUILD_NUMBER}")
         }
         
         failure {
-            echo '❌❌❌ Pipeline Django échouée! ❌❌❌'
-            script {
-                // Logs de débogage
-                sh '''
-                    echo "=== DERNIERS LOGS D'ERREUR ==="
-                    tail -50 /var/log/syslog 2>/dev/null || dmesg | tail -20 2>/dev/null || echo "Pas de logs système"
-                    
-                    echo "=== ESPACE DISPONIBLE ==="
-                    df -h .
-                    
-                    echo "=== MÉMOIRE ==="
-                    free -h 2>/dev/null || echo "Commande free non disponible"
-                    
-                    echo "=== PROCESSUS PYTHON ==="
-                    ps aux | grep -i python | head -20
-                '''
-                
-                // slackSend(
-                //     color: 'danger',
-                //     message: "❌ Build ${env.BUILD_NUMBER} échoué\nVoir: ${env.BUILD_URL}"
-                // )
-            }
+            echo '❌ Pipeline Django échouée!'
+            // Optionnel: notification d'échec
+            // slackSend(channel: '#dev', message: "❌ Build échoué pour ${env.JOB_NAME} - ${env.BUILD_NUMBER}")
         }
         
         unstable {
-            echo '⚠️ Pipeline instable (tests échoués)'
-            // slackSend(
-            //     color: 'warning',
-            //     message: "⚠️ Build ${env.BUILD_NUMBER} instable\nTests échoués mais build OK"
-            // )
+            echo '⚠️ Pipeline Django instable (tests échoués mais build OK)'
         }
     }
 }
