@@ -7,12 +7,30 @@ pipeline {
         SECRET_KEY = 'jenkins-test-key-not-for-production'
     }
     
-    options {
-        timeout(time: 30, unit: 'MINUTES')
-        retry(2)
-    }
     
     stages {
+        stage('Check and Install Python') {
+            steps {
+                bat '''
+                    echo Vérification de Python...
+                    
+                    REM Essayer plusieurs chemins possibles
+                    IF EXIST "C:\\Python313\\python.exe" (
+                        set "PYTHON_PATH=C:\\Python313\\python.exe"
+                    ) ELSE IF EXIST "C:\\Users\\jenkins\\AppData\\Local\\Programs\\Python\\Python313\\python.exe" (
+                        set "PYTHON_PATH=C:\\Users\\jenkins\\AppData\\Local\\Programs\\Python\\Python313\\python.exe"
+                    ) ELSE (
+                        echo ❌ Python 3.13 non trouvé
+                        echo Installez Python manuellement sur le serveur Jenkins
+                        exit /b 1
+                    )
+                    
+                    echo ✅ Python trouvé: %PYTHON_PATH%
+                    "%PYTHON_PATH%" --version
+                '''
+            }
+        }
+
         stage('Diagnostic Système') {
             steps {
                 echo '🔍 Diagnostic du système...'
