@@ -1,4 +1,4 @@
-name: Django CI/CD with SQLite
+name: Django CI/CD with Railway
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:  # Permet le déclenchement manuel
 
 jobs:
-  # ÉTAPE 1: TESTS - Rapide car SQLite en mémoire
+  # ÉTAPE 1: TESTS (CI)
   test:
     runs-on: ubuntu-latest
     
@@ -20,7 +20,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        cache: 'pip'  # Cache les dépendances pour accélérer
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
@@ -31,19 +31,16 @@ jobs:
       run: |
         flake8 . --count --max-complexity=10 --statistics
     
-    - name: Check formatting with black
+    - name: Format check with black
       run: |
         black . --check
     
     - name: Run migrations
-      env:
-        DJANGO_SETTINGS_MODULE: mon_projet.settings
       run: |
-        python manage.py migrate --noinput
+        python manage.py migrate
     
-    - name: Run Django tests
+    - name: Run tests
       env:
-        DJANGO_SETTINGS_MODULE: mon_projet.settings
         SECRET_KEY: test-key-not-secure
         DEBUG: 'False'
       run: |
@@ -51,7 +48,6 @@ jobs:
     
     - name: Run pytest with coverage
       run: |
-        pip install pytest pytest-django pytest-cov
         pytest --cov=./ --cov-report=xml --cov-report=html
     
     - name: Upload coverage report
@@ -60,7 +56,7 @@ jobs:
         name: coverage-report
         path: htmlcov/
 
-  # ÉTAPE 2: BUILD - Collecte des fichiers statiques
+  # ÉTAPE 2: BUILD (Collect static files)
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -80,66 +76,37 @@ jobs:
     - name: Collect static files
       env:
         SECRET_KEY: build-key-not-secure
-        DJANGO_SETTINGS_MODULE: mon_projet.settings
       run: |
         python manage.py collectstatic --noinput
     
-    - name: Upload static files artifact
+    - name: Upload static files
       uses: actions/upload-artifact@v4
       with:
-        name: static-files
+        name: staticfiles
         path: staticfiles/
-    
-    - name: Upload application artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: django-app
-        path: |
-          .
-          !.git
-          !.github
-          !**/__pycache__
-          !**/*.pyc
-          !db.sqlite3  # Important: on exclut la base SQLite !
-          !.env
-          !coverage.xml
-          !htmlcov/
 
-  # ÉTAPE 3: DÉPLOIEMENT - Uniquement sur main/master
+  # ÉTAPE 3: DÉPLOIEMENT SUR RAILWAY (CD)
   deploy:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     
     steps:
-    - name: Download application
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download static files
       uses: actions/download-artifact@v4
       with:
-        name: django-app
-        path: app/
+        name: staticfiles
+        path: staticfiles/
     
-    - name: Deploy to production
-      env:
-        # Ces secrets doivent être configurés dans GitHub
-        SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-        SSH_HOST: ${{ secrets.DEPLOY_HOST }}
-        SSH_USER: ${{ secrets.DEPLOY_USER }}
+    - name: Install Railway CLI
       run: |
-        # Configuration SSH
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        # Copie des fichiers vers le serveur
-        rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-          app/ $SSH_USER@$SSH_HOST:/var/www/monapp/
-        
-        # Commandes post-déploiement
-        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "
-          cd /var/www/monapp &&
-          source venv/bin/activate &&
-          pip install -r requirements.txt &&
-          python manage.py migrate --noinput &&
-          python manage.py collectstatic --noinput &&
-          sudo systemctl restart gunicorn || echo 'Gunicorn not found'
-        "
+        npm install -g @railway/cli
+    
+    - name: Deploy to Railway
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        railway up --detach
