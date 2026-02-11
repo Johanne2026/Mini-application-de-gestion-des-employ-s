@@ -1,0 +1,23 @@
+# Django
+*.pyc
+__pycache__/
+staticfiles/
+media/
+db.sqlite3
+*.sqlite3
+
+# Environnement
+.env
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Tests
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml" > .gitignore

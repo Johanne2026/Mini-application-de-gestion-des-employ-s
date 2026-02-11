@@ -1,0 +1,145 @@
+name: Django CI/CD with SQLite
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Permet le déclenchement manuel
+
+jobs:
+  # ÉTAPE 1: TESTS - Rapide car SQLite en mémoire
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'  # Cache les dépendances pour accélérer
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --max-complexity=10 --statistics
+    
+    - name: Check formatting with black
+      run: |
+        black . --check
+    
+    - name: Run migrations
+      env:
+        DJANGO_SETTINGS_MODULE: mon_projet.settings
+      run: |
+        python manage.py migrate --noinput
+    
+    - name: Run Django tests
+      env:
+        DJANGO_SETTINGS_MODULE: mon_projet.settings
+        SECRET_KEY: test-key-not-secure
+        DEBUG: 'False'
+      run: |
+        python manage.py test --noinput
+    
+    - name: Run pytest with coverage
+      run: |
+        pip install pytest pytest-django pytest-cov
+        pytest --cov=./ --cov-report=xml --cov-report=html
+    
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: htmlcov/
+
+  # ÉTAPE 2: BUILD - Collecte des fichiers statiques
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
+    - name: Collect static files
+      env:
+        SECRET_KEY: build-key-not-secure
+        DJANGO_SETTINGS_MODULE: mon_projet.settings
+      run: |
+        python manage.py collectstatic --noinput
+    
+    - name: Upload static files artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: static-files
+        path: staticfiles/
+    
+    - name: Upload application artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: django-app
+        path: |
+          .
+          !.git
+          !.github
+          !**/__pycache__
+          !**/*.pyc
+          !db.sqlite3  # Important: on exclut la base SQLite !
+          !.env
+          !coverage.xml
+          !htmlcov/
+
+  # ÉTAPE 3: DÉPLOIEMENT - Uniquement sur main/master
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Download application
+      uses: actions/download-artifact@v4
+      with:
+        name: django-app
+        path: app/
+    
+    - name: Deploy to production
+      env:
+        # Ces secrets doivent être configurés dans GitHub
+        SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+        SSH_USER: ${{ secrets.DEPLOY_USER }}
+      run: |
+        # Configuration SSH
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        # Copie des fichiers vers le serveur
+        rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+          app/ $SSH_USER@$SSH_HOST:/var/www/monapp/
+        
+        # Commandes post-déploiement
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "
+          cd /var/www/monapp &&
+          source venv/bin/activate &&
+          pip install -r requirements.txt &&
+          python manage.py migrate --noinput &&
+          python manage.py collectstatic --noinput &&
+          sudo systemctl restart gunicorn || echo 'Gunicorn not found'
+        "
