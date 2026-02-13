@@ -1,12 +1,16 @@
 import os
+import django
 import pytest
+
+# 🔴 CRITIQUE: Configurer Django AVANT d'importer quoi que ce soit de Django ou DRF
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'employe_project.settings')
+django.setup()
+
+# 🔴 MAINTENANT on peut importer les modules Django/DRF
 from rest_framework.test import APIClient
 from django.contrib.auth.models import User
 from employe.models import Employe
 from decimal import Decimal
-
-# Configuration de Django pour pytest
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'employe_project.settings')
 
 @pytest.fixture
 def api_client():
@@ -14,7 +18,7 @@ def api_client():
     return APIClient()
 
 @pytest.fixture
-def authenticated_client(api_client):
+def authenticated_client():
     """Fixture pour créer un client API authentifié"""
     user, created = User.objects.get_or_create(
         username='testuser',
