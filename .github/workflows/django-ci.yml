@@ -104,8 +104,9 @@ jobs:
       run: |
         railway status
     
-    - name: Deploy to Railway
+    - name: Deploy to Railway (with auto-create)
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: |
-        railway up --detach
+        # Déploiement avec création automatique de service
+        railway up --detach --create-service --service-name="gestion-employes-api"
