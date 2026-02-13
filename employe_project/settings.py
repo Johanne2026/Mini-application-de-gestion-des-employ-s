@@ -14,6 +14,8 @@ from pathlib import Path
 
 import os
 from pathlib import Path
+import environ
+import sys
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,7 +28,6 @@ DATABASES = {
 }
 
 # Configuration importante pour GitHub Actions
-import sys
 if 'test' in sys.argv or 'pytest' in sys.argv:
     # Utiliser une base en mémoire pour les tests
     DATABASES['default'] = {
@@ -40,7 +41,6 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Sécurité (clé depuis .env en dev)
-import environ
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / '.env')
 
@@ -72,7 +72,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'employe',
-    # 'api.apps.ApiConfig',
     'rest_framework',
 ]
 
