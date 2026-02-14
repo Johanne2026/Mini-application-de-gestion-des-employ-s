@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Employés</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="p-6">
+    <div class="container mx-auto max-w-7xl">
+        <!-- Header -->
+        <div class="card rounded-2xl shadow-2xl p-8 mb-6 fade-in">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-4xl font-bold text-gray-800 mb-2">
+                        <i class="fas fa-users text-purple-600 mr-3"></i>Gestion des Employés
+                    </h1>
+                    <p class="text-gray-600">Gérez votre équipe efficacement</p>
+                </div>
+                <button onclick="openModal()" class="btn-primary text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2">
+                    <i class="fas fa-plus"></i>
+                    Ajouter un employé
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="card rounded-xl shadow-lg p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">Total Employés</p>
+                        <p id="totalEmployes" class="text-3xl font-bold text-purple-600">0</p>
+                    </div>
+                    <div class="bg-purple-100 p-4 rounded-full">
+                        <i class="fas fa-users text-purple-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card rounded-xl shadow-lg p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">Salaire Moyen</p>
+                        <p id="salaireMoyen" class="text-3xl font-bold text-green-600">0 €</p>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-full">
+                        <i class="fas fa-euro-sign text-green-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card rounded-xl shadow-lg p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">Postes Différents</p>
+                        <p id="totalPostes" class="text-3xl font-bold text-blue-600">0</p>
+                    </div>
+                    <div class="bg-blue-100 p-4 rounded-full">
+                        <i class="fas fa-briefcase text-blue-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="card rounded-xl shadow-lg p-6 mb-6 fade-in">
+            <div class="flex gap-4">
+                <div class="flex-1">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Rechercher par nom, email ou poste..." 
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        onkeyup="filterEmployes()"
+                    >
+                </div>
+            </div>
+        </div>
+
+        <!-- Employees Table -->
+        <div class="card rounded-2xl shadow-2xl overflow-hidden fade-in">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-sm font-semibold">Nom</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold">Email</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold">Poste</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold">Salaire</th>
+                            <th class="px-6 py-4 text-center text-sm font-semibold">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employesList" class="divide-y divide-gray-200">
+                        <!-- Les employés seront chargés ici -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="emptyState" class="hidden text-center py-12">
+                <i class="fas fa-inbox text-gray-300 text-6xl mb-4"></i>
+                <p class="text-gray-500 text-lg">Aucun employé trouvé</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajouter/Modifier -->
+    <div id="employeModal" class="modal">
+        <div class="card rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="modalTitle" class="text-2xl font-bold text-gray-800">Ajouter un employé</h2>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <form id="employeForm" onsubmit="saveEmploye(event)">
+                <input type="hidden" id="employeId">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Nom</label>
+                        <input 
+                            type="text" 
+                            id="nom" 
+                            required 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="Jean Dupont"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Email</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            required 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="jean.dupont@example.com"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Poste</label>
+                        <input 
+                            type="text" 
+                            id="poste" 
+                            required 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="Développeur"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Salaire (€)</label>
+                        <input 
+                            type="number" 
+                            id="salaire" 
+                            required 
+                            step="0.01" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="50000.00"
+                        >
+                    </div>
+                </div>
+                <div class="flex gap-4 mt-6">
+                    <button 
+                        type="submit" 
+                        class="flex-1 btn-primary text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                        <i class="fas fa-save mr-2"></i>Enregistrer
+                    </button>
+                    <button 
+                        type="button" 
+                        onclick="closeModal()" 
+                        class="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 transition-all duration-300"
+                    >
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let employes = [];
+        let filteredEmployes = [];
+
+        // Charger les employés au démarrage
+        document.addEventListener('DOMContentLoaded', () => {
+            loadEmployes();
+        });
+
+        // Charger tous les employés
+        async function loadEmployes() {
+            try {
+                const response = await fetch('/employe/');
+                if (!response.ok) throw new Error('Erreur de chargement');
+                employes = await response.json();
+                filteredEmployes = employes;
+                displayEmployes();
+                updateStats();
+            } catch (error) {
+                console.error('Erreur:', error);
+                showNotification('Erreur de chargement des données', 'error');
+            }
+        }
+
+        // Afficher les employés
+        function displayEmployes() {
+            const tbody = document.getElementById('employesList');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (filteredEmployes.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            tbody.innerHTML = filteredEmployes.map(emp => `
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                                ${emp.nom.charAt(0).toUpperCase()}
+                            </div>
+                            <span class="font-semibold text-gray-800">${emp.nom}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-600">
+                        <i class="fas fa-envelope text-gray-400 mr-2"></i>${emp.email}
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                            ${emp.poste}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-gray-800 font-semibold">
+                        ${parseFloat(emp.salaire).toLocaleString('fr-FR')} €
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex justify-center gap-2">
+                            <button 
+                                onclick="editEmploye(${emp.id})" 
+                                class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                                title="Modifier"
+                            >
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button 
+                                onclick="deleteEmploye(${emp.id})" 
+                                class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                                title="Supprimer"
+                            >
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Mettre à jour les statistiques
+        function updateStats() {
+            document.getElementById('totalEmployes').textContent = employes.length;
+            
+            if (employes.length > 0) {
+                const moyenneSalaire = employes.reduce((sum, emp) => sum + parseFloat(emp.salaire), 0) / employes.length;
+                document.getElementById('salaireMoyen').textContent = moyenneSalaire.toLocaleString('fr-FR', {maximumFractionDigits: 0}) + ' €';
+                
+                const postesUniques = new Set(employes.map(emp => emp.poste));
+                document.getElementById('totalPostes').textContent = postesUniques.size;
+            } else {
+                document.getElementById('salaireMoyen').textContent = '0 €';
+                document.getElementById('totalPostes').textContent = '0';
+            }
+        }
+
+        // Filtrer les employés
+        function filterEmployes() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            filteredEmployes = employes.filter(emp => 
+                emp.nom.toLowerCase().includes(searchTerm) ||
+                emp.email.toLowerCase().includes(searchTerm) ||
+                emp.poste.toLowerCase().includes(searchTerm)
+            );
+            displayEmployes();
+        }
+
+        // Ouvrir le modal
+        function openModal(employe = null) {
+            const modal = document.getElementById('employeModal');
+            const title = document.getElementById('modalTitle');
+            
+            if (employe) {
+                title.textContent = 'Modifier un employé';
+                document.getElementById('employeId').value = employe.id;
+                document.getElementById('nom').value = employe.nom;
+                document.getElementById('email').value = employe.email;
+                document.getElementById('poste').value = employe.poste;
+                document.getElementById('salaire').value = employe.salaire;
+            } else {
+                title.textContent = 'Ajouter un employé';
+                document.getElementById('employeForm').reset();
+                document.getElementById('employeId').value = '';
+            }
+            
+            modal.classList.add('active');
+        }
+
+        // Fermer le modal
+        function closeModal() {
+            document.getElementById('employeModal').classList.remove('active');
+            document.getElementById('employeForm').reset();
+        }
+
+        // Sauvegarder un employé
+        async function saveEmploye(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('employeId').value;
+            const data = {
+                nom: document.getElementById('nom').value,
+                email: document.getElementById('email').value,
+                poste: document.getElementById('poste').value,
+                salaire: document.getElementById('salaire').value
+            };
+            
+            try {
+                let response;
+                if (id) {
+                    response = await fetch(`/employe/modifier/${id}/`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    response = await fetch('/employe/ajouter/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                }
+                
+                if (!response.ok) throw new Error('Erreur de sauvegarde');
+                
+                showNotification(id ? 'Employé modifié avec succès' : 'Employé ajouté avec succès', 'success');
+                closeModal();
+                loadEmployes();
+            } catch (error) {
+                console.error('Erreur:', error);
+                showNotification('Erreur lors de la sauvegarde', 'error');
+            }
+        }
+
+        // Modifier un employé
+        function editEmploye(id) {
+            const employe = employes.find(emp => emp.id === id);
+            if (employe) openModal(employe);
+        }
+
+        // Supprimer un employé
+        async function deleteEmploye(id) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer cet employé ?')) return;
+            
+            try {
+                const response = await fetch(`/employe/supprimer/${id}/`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Erreur de suppression');
+                
+                showNotification('Employé supprimé avec succès', 'success');
+                loadEmployes();
+            } catch (error) {
+                console.error('Erreur:', error);
+                showNotification('Erreur lors de la suppression', 'error');
+            }
+        }
+
+        // Afficher une notification
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            } fade-in z-50`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} text-xl"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

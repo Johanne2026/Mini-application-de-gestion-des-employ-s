@@ -1,9 +1,16 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render
 from .models import Employe
 from .serializers import EmployeSerializer
 from rest_framework import generics
 
+
 # Create your views here.
+
+
+def index(request):
+    """Vue pour afficher la page principale du frontend"""
+    return render(request, 'employe/index.html')
+
 
 # def liste_employes(request):
 #     employes = Employe.objects.all()
