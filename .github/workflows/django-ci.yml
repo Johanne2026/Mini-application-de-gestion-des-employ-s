@@ -109,4 +109,4 @@ jobs:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: |
         # Déploiement avec création automatique de service
-        railway up --detach --create-service --service-name="gestion-employes-api"
+        railway up --detach --service "Mini-application-de-gestion-des-employ-s"
