@@ -11,30 +11,11 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
-
 import os
 from pathlib import Path
 import environ
 import sys
-import time
-import dj_database_url
-from django.core.exceptions import ImproperlyConfigured
 
-# Attendez que la DB soit prête
-max_tries = 5
-for i in range(max_tries):
-    try:
-        DATABASES = {
-            'default': dj_database_url.config(conn_max_age=600)
-        }
-        # Test rapide
-        from django.db import connections
-        connections['default'].ensure_connection()
-        break
-    except Exception as e:
-        if i == max_tries - 1:
-            raise
-        time.sleep(2)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
