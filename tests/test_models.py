@@ -319,3 +319,13 @@ class EmployeIntegrationTest(APITestCase):
         # Vérifier que l'employé n'existe plus
         verify_response = self.client.get(f'/employe/modifier/{employe_id}/')
         self.assertEqual(verify_response.status_code, status.HTTP_404_NOT_FOUND)
+
+class EmployeFixtureTest(TestCase):
+    fixtures = ['test_data.json']
+    
+    def test_fixtures_chargees(self):
+        """Test que les fixtures sont bien chargées"""
+        from employe.models import Employe
+        self.assertEqual(Employe.objects.count(), 2)
+        self.assertEqual(Employe.objects.get(pk=1).nom, "Aboubakar Vincent")
+        self.assertEqual(Employe.objects.get(pk=2).nom, "Emmy Dany")

@@ -27,6 +27,10 @@ DATABASES = {
     }
 }
 
+FIXTURE_DIRS = [
+    BASE_DIR / 'fixtures',
+]
+
 # Configuration importante pour GitHub Actions
 if 'test' in sys.argv or 'pytest' in sys.argv:
     # Utiliser une base en mémoire pour les tests

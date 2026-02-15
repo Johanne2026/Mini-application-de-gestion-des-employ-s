@@ -1,0 +1,22 @@
+[
+  {
+    "model": "employe.employe",
+    "pk": 1,
+    "fields": {
+      "nom": "Aboubakar Vincent",
+      "email": "vincent@gmail.com",
+      "poste": "Développeur",
+      "salaire": "45000.00"
+    }
+  },
+  {
+    "model": "employe.employe",
+    "pk": 2,
+    "fields": {
+      "nom": "Emmy Dany",
+      "email": "emmy@gmail.com",
+      "poste": "Designer",
+      "salaire": "42000.00"
+    }
+  }
+]
