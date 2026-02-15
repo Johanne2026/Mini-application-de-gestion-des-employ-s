@@ -16,6 +16,25 @@ import os
 from pathlib import Path
 import environ
 import sys
+import time
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
+
+# Attendez que la DB soit prête
+max_tries = 5
+for i in range(max_tries):
+    try:
+        DATABASES = {
+            'default': dj_database_url.config(conn_max_age=600)
+        }
+        # Test rapide
+        from django.db import connections
+        connections['default'].ensure_connection()
+        break
+    except Exception as e:
+        if i == max_tries - 1:
+            raise
+        time.sleep(2)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -46,7 +65,16 @@ environ.Env.read_env(BASE_DIR / '.env')
 
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-dev-key')
 DEBUG = env.bool('DEBUG', default=True)
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+# ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '.railway.app',
+    'mini-application-de-gestion-des-employ-s-production.up.railway.app',  
+    # Accepte tous les sous-domaines railway.app
+    os.environ.get('RAILWAY_PUBLIC_DOMAIN', ''),
+]
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
